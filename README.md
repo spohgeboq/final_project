@@ -1,49 +1,79 @@
-# Final Blockchain Project — Crowdfunding + Reward Token (Testnet)
+# Decentralized Crowdfunding DApp
 
-## Idea
+This project is a decentralized crowdfunding application built for the Ethereum blockchain. It allows users to create campaigns, contribute ETH, and receive reward tokens (CWD) in return.
 
-We act as a mediator between factories (suppliers) and resellers who want to sell products but don't have storage or production.
-Resellers pool funds to finance large factory batches. The system is implemented as a decentralized crowdfunding app.
-Users contribute test ETH and receive internal ERC-20 reward tokens proportional to their contribution.
+## Project Architecture
 
-## Requirements (from assignment)
+The application consists of:
 
-- Ethereum Testnet only (Sepolia / Holesky / Local)
-- MetaMask integration
-- Crowdfunding campaigns: create, contribute, track contributions, finalize by deadline
-- ERC-20 reward token minted automatically for contributions
+1.  **Smart Contracts (Solidity)**:
+    - `Crowdfunding.sol`: Manages campaigns, contributions, and finalization.
+    - `RewardToken.sol`: An ERC-20 token minted as a reward for contributors.
+2.  **Frontend (Vanilla JS)**: Interacts with the smart contracts via MetaMask.
+3.  **Deployment Scripts (Hardhat)**: Automates the deployment and linking of contracts.
 
-## Planned Architecture
+### Smart Contract Logic
 
-- **Smart contracts**
-  - `CampaignFactory` / `Crowdfunding` contract for campaigns
-  - `RewardToken` (ERC-20) minted during contributions
-- **Frontend**
-  - JS app (MetaMask + Ethers.js) to create campaigns, contribute, show balances
-- **Docs**
-  - Architecture, decisions, deployment and testnet instructions
+- **Creating a Campaign**: Users define a title, goal, and duration.
+- **Contributing**: Users send ETH. The contract records the contribution and calls the `RewardToken` contract to mint tokens to the contributor at a rate of 100 CWD per 1 ETH.
+- **Finalizing**: After the deadline, the campaign can be finalized. Funds are transferred to the creator (simple logic for demonstration).
+- **Tokenomics**: Reward tokens have no monetary value and serve as a proof-of-contribution mechanism.
 
-## Repository Structure
+## Prerequisites
 
-- `contracts/` — Solidity contracts (coming soon)
-- `frontend/` — JS frontend (coming soon)
-- `docs/` — documentation
-- `presentation/` — slides
+- Node.js & npm
+- MetaMask Extension
 
-## Progress Checklist
+## Setup Instructions
 
-- [x] Project structure created
-- [x] Git initialized
-- [ ] Smart contracts implemented
-- [ ] Frontend + MetaMask implemented
-- [ ] Testnet deployment
-- [ ] PDF documentation + presentation
+### 1. Install Dependencies
 
-## How to run (placeholder)
+Navigate to the root directory and install Hardhat and OpenZeppelin contracts:
 
-Coming soon.
-![alt text](/assets/image.png)
-![alt text](/assets/image-1.png)
-![alt text](/assets/image-2.png)
-![alt text](/assets/image-3.png)
-![alt text](/assets/image-4.png)
+```bash
+npm init -y
+npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
+npm install @openzeppelin/contracts
+```
+
+### 2. Local Blockchain (Hardhat Network)
+
+1.  Start a local blockchain node:
+    ```bash
+    npx hardhat node
+    ```
+2.  **Import Accounts to MetaMask**:
+    - Copy the private keys displayed in the terminal.
+    - In MetaMask, switch to "Localhost 8545" (or Add Network manually: Chain ID 1337 or 31337, RPC `http://127.0.0.1:8545`).
+    - Import accounts using the private keys to have test ETH.
+
+### 3. Deploy Contracts
+
+In a new terminal window (keep the node running):
+
+```bash
+npx hardhat run contracts/scripts/deploy.js --network localhost
+```
+
+- This will deploy the contracts and generate `frontend/contract-address.json`, `frontend/RewardToken.json`, and `frontend/Crowdfunding.json`.
+
+### 4. Run Frontend
+
+Since this is a static site, you can serve it using any simple HTTP server.
+
+- Using VS Code: Right-click `frontend/index.html` -> "Open with Live Server".
+- Or use Python: `cd frontend && python -m http.server 8000` -> Go to `http://localhost:8000`.
+
+**Note**: Opening `index.html` directly (file://) might cause CORS issues with module loading or JSON fetching in some browsers. Using a local server is recommended.
+
+## How to Get Test ETH
+
+- **Localhost**: You are automatically given 10000 ETH in the pre-generated accounts.
+- **Sepolia Testnet**: Use a faucet like [Google Cloud Web3 Faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) or [Alchemy Faucet](https://www.alchemy.com/faucets/ethereum-sepolia).
+
+## Usage
+
+1.  **Connect Wallet**: Click the button to connect MetaMask.
+2.  **Create Campaign**: Enter details and confirm transaction.
+3.  **Contribute**: Choose an active campaign and send ETH. Watch your Reward Token balance increase!
+4.  **Finalize**: Once a campaign duration expires, finalize it to settle the state.
