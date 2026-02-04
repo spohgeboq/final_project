@@ -42,3 +42,8 @@ Users contribute test ETH and receive internal ERC-20 reward tokens proportional
 ## How to run (placeholder)
 
 Coming soon.
+![alt text](/assets/image.png)
+![alt text](/assets/image-1.png)
+![alt text](/assets/image-2.png)
+![alt text](/assets/image-3.png)
+![alt text](/assets/image-4.png)
