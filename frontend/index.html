@@ -55,9 +55,18 @@
                         <span id="eth-balance" class="font-semibold">0.00</span>
                     </div>
                     <div class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-dark-700 border border-white/10">
-                        <span class="text-gray-400">🪙</span>
+                        <span class="text-gray-400">🎫</span>
                         <span id="token-balance" class="font-semibold text-gradient">0</span>
+                        <span class="text-gray-400">Orders</span>
                     </div>
+                    <button 
+                        id="add-token-btn"
+                        class="px-2 py-1.5 rounded-lg bg-dark-700 border border-white/10 hover:bg-dark-600 transition-colors text-xs"
+                        onclick="addTokenToMetaMask()"
+                        title="Add FPT Token to MetaMask"
+                    >
+                        🦊+
+                    </button>
                 </div>
                 <button id="connect-wallet-btn" class="btn-primary">
                     Connect Wallet
@@ -93,30 +102,63 @@
                 <h2 class="text-xl font-bold mb-6 text-gradient">🏭 Create New Campaign</h2>
                 
                 <form id="create-campaign-form" onsubmit="return false;">
-                    <!-- Campaign Title -->
+                    <!-- Company Name -->
                     <div class="form-group">
-                        <label class="form-label" for="campaign-title">Campaign Title</label>
+                        <label class="form-label" for="company-name">Company Name</label>
                         <input 
                             type="text" 
-                            id="campaign-title" 
+                            id="company-name" 
                             class="input-field" 
-                            placeholder="Enter campaign title..."
+                            placeholder="e.g., Foxconn"
                             required
                         >
                     </div>
 
-                    <!-- Funding Goal -->
+                    <!-- Product Name -->
                     <div class="form-group">
-                        <label class="form-label" for="campaign-goal">Funding Goal (ETH)</label>
+                        <label class="form-label" for="product-name">Product Name</label>
                         <input 
-                            type="number" 
-                            id="campaign-goal" 
+                            type="text" 
+                            id="product-name" 
                             class="input-field" 
-                            placeholder="0.1"
-                            step="0.001"
-                            min="0.001"
+                            placeholder="e.g., iPhone 15 Pro"
                             required
                         >
+                    </div>
+
+                    <!-- Target Quantity & Price Per Unit -->
+                    <div class="flex gap-3">
+                        <div class="form-group flex-1">
+                            <label class="form-label" for="target-quantity">Target Quantity</label>
+                            <input 
+                                type="number" 
+                                id="target-quantity" 
+                                class="input-field" 
+                                placeholder="1000"
+                                min="1"
+                                required
+                            >
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label" for="price-per-unit">Price Per Unit (ETH)</label>
+                            <input 
+                                type="number" 
+                                id="price-per-unit" 
+                                class="input-field" 
+                                placeholder="0.01"
+                                step="0.0001"
+                                min="0.0001"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Calculated Total Goal Display -->
+                    <div class="form-group">
+                        <div id="total-goal-display" class="px-4 py-3 rounded-lg bg-dark-700 border border-white/10 text-center">
+                            <span class="text-gray-400">Total Funding Goal: </span>
+                            <span id="calculated-goal" class="text-xl font-bold text-gradient">0.00 ETH</span>
+                        </div>
                     </div>
 
                     <!-- Duration -->
@@ -169,7 +211,7 @@
                         class="btn-primary w-full mt-4"
                         onclick="createCampaign()"
                     >
-                        🚀 Create Campaign
+                        🚀 Launch Production Batch
                     </button>
                 </form>
             </div>

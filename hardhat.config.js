@@ -11,7 +11,7 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      chainId: 1337,
+      chainId: 31337,
     },
     // Configuration for Sepolia Testnet
     // User needs to add their own URL and Private Key
@@ -23,7 +23,7 @@ module.exports = {
     },
     localhost: {
       url: "http://127.0.0.1:8545",
-      chainId: 1337,
+      chainId: 31337,
     },
   },
 };

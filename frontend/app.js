@@ -74,11 +74,33 @@ function setupEventListeners() {
   tabFactory.addEventListener('click', () => switchTab('factory'));
   tabSeller.addEventListener('click', () => switchTab('seller'));
 
+  // Автоматический расчёт Total Goal
+  const quantityInput = document.getElementById('target-quantity');
+  const priceInput = document.getElementById('price-per-unit');
+  if (quantityInput && priceInput) {
+    quantityInput.addEventListener('input', calculateTotalGoal);
+    priceInput.addEventListener('input', calculateTotalGoal);
+  }
+
   // Слушаем изменения в MetaMask
   if (window.ethereum) {
     window.ethereum.on('accountsChanged', handleAccountsChanged);
     window.ethereum.on('chainChanged', handleChainChanged);
   }
+}
+
+// === Calculate Total Goal (Quantity * Price Per Unit) ===
+function calculateTotalGoal() {
+  const quantity = parseFloat(document.getElementById('target-quantity').value) || 0;
+  const pricePerUnit = parseFloat(document.getElementById('price-per-unit').value) || 0;
+  const totalGoal = quantity * pricePerUnit;
+
+  const displayEl = document.getElementById('calculated-goal');
+  if (displayEl) {
+    displayEl.textContent = `${totalGoal.toFixed(4)} ETH`;
+  }
+
+  return totalGoal;
 }
 
 // === Network Validation ===
@@ -250,10 +272,11 @@ async function updateUserStats() {
     const ethFormatted = parseFloat(ethers.formatEther(ethBalance)).toFixed(4);
     ethBalanceEl.textContent = ethFormatted;
 
-    // Получаем баланс токенов
+    // Получаем баланс токенов (Reward Tokens = Orders)
     const tokenBalance = await tokenContract.balanceOf(userAddress);
     const tokenFormatted = ethers.formatEther(tokenBalance);
-    tokenBalanceEl.textContent = parseFloat(tokenFormatted).toFixed(2);
+    // Показываем как целое число (без дробной части)
+    tokenBalanceEl.textContent = Math.floor(parseFloat(tokenFormatted));
 
     // Показываем статы
     userStatsEl.classList.remove('hidden');
@@ -262,6 +285,42 @@ async function updateUserStats() {
     console.log('📊 User stats updated:', { eth: ethFormatted, tokens: tokenFormatted });
   } catch (error) {
     console.error('❌ Failed to update user stats:', error);
+  }
+}
+
+// === Add Token to MetaMask ===
+async function addTokenToMetaMask() {
+  try {
+    if (!window.ethereum) {
+      alert('🦊 MetaMask is not installed!');
+      return;
+    }
+
+    const tokenAddress = CONTRACT_ADDRESS.RewardToken;
+    const tokenSymbol = 'FPT'; // FactoryPool Token
+    const tokenDecimals = 18;
+
+    const wasAdded = await window.ethereum.request({
+      method: 'wallet_watchAsset',
+      params: {
+        type: 'ERC20',
+        options: {
+          address: tokenAddress,
+          symbol: tokenSymbol,
+          decimals: tokenDecimals,
+        },
+      },
+    });
+
+    if (wasAdded) {
+      console.log('✅ FPT Token added to MetaMask!');
+      alert('🎉 FPT Token added to your MetaMask wallet!');
+    } else {
+      console.log('❌ User declined to add token');
+    }
+  } catch (error) {
+    console.error('❌ Failed to add token to MetaMask:', error);
+    alert('Failed to add token. Check console for details.');
   }
 }
 
@@ -296,22 +355,31 @@ function switchTab(tab) {
 
 // === Campaign Creation ===
 async function createCampaign() {
-  const titleInput = document.getElementById('campaign-title');
-  const goalInput = document.getElementById('campaign-goal');
+  const companyInput = document.getElementById('company-name');
+  const productInput = document.getElementById('product-name');
+  const quantityInput = document.getElementById('target-quantity');
+  const priceInput = document.getElementById('price-per-unit');
   const daysInput = document.getElementById('campaign-days');
   const hoursInput = document.getElementById('campaign-hours');
   const minutesInput = document.getElementById('campaign-minutes');
   const submitBtn = document.getElementById('create-campaign-btn');
 
   // Валидация
-  const title = titleInput.value.trim();
-  const goalEth = goalInput.value;
+  const companyName = companyInput.value.trim();
+  const productName = productInput.value.trim();
+  const quantity = parseInt(quantityInput.value) || 0;
+  const pricePerUnit = parseFloat(priceInput.value) || 0;
   const days = parseInt(daysInput.value) || 0;
   const hours = parseInt(hoursInput.value) || 0;
   const minutes = parseInt(minutesInput.value) || 0;
 
-  if (!title || !goalEth) {
-    alert('⚠️ Please fill in title and goal!');
+  if (!companyName || !productName) {
+    alert('⚠️ Please fill in Company Name and Product Name!');
+    return;
+  }
+
+  if (quantity <= 0 || pricePerUnit <= 0) {
+    alert('⚠️ Please enter valid Quantity and Price Per Unit!');
     return;
   }
 
@@ -320,6 +388,12 @@ async function createCampaign() {
     alert('⚠️ Please set a duration (at least 1 minute)!');
     return;
   }
+
+  // Рассчитываем Total Goal
+  const totalGoalEth = quantity * pricePerUnit;
+
+  // Формируем title для блокчейна: "Company - Product (Qty pcs)"
+  const title = `${companyName} - ${productName} (${quantity} pcs)`;
 
   // Сохраняем оригинальный текст кнопки
   const originalBtnText = submitBtn.textContent;
@@ -330,13 +404,16 @@ async function createCampaign() {
     submitBtn.disabled = true;
 
     // Конвертация значений
-    const goalWei = ethers.parseEther(goalEth);
+    const goalWei = ethers.parseEther(totalGoalEth.toString());
 
     // Расчёт длительности в секундах
     const durationSeconds = (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60);
 
     console.log('📝 Creating campaign:', {
       title,
+      quantity,
+      pricePerUnit,
+      totalGoalEth,
       goalWei: goalWei.toString(),
       durationSeconds,
       duration: `${days}d ${hours}h ${minutes}m`
@@ -356,12 +433,17 @@ async function createCampaign() {
     await tx.wait();
 
     console.log('✅ Campaign created successfully!');
-    alert('🎉 Campaign created successfully!');
+    alert('🎉 Production batch launched successfully!');
 
     // Очистка формы
-    titleInput.value = '';
-    goalInput.value = '';
-    durationInput.value = '';
+    companyInput.value = '';
+    productInput.value = '';
+    quantityInput.value = '';
+    priceInput.value = '';
+    daysInput.value = '0';
+    hoursInput.value = '0';
+    minutesInput.value = '5';
+    document.getElementById('calculated-goal').textContent = '0.00 ETH';
 
     // Обновление списка кампаний
     await loadCampaigns();
@@ -433,35 +515,145 @@ async function loadCampaigns() {
       // Расчёты
       const goalEth = ethers.formatEther(goal);
       const pledgedEth = ethers.formatEther(pledged);
-      const progress = goal > 0n ? Number((pledged * 100n) / goal) : 0;
-      const progressCapped = Math.min(progress, 100);
+      const goalNum = parseFloat(goalEth);
+      const pledgedNum = parseFloat(pledgedEth);
+      const progress = goalNum > 0 ? (pledgedNum / goalNum) * 100 : 0;
+      const progressCapped = Math.min(Math.round(progress), 100);
+
+      // Парсим количество из title (формат: "Company - Product (Qty pcs)")
+      const quantityMatch = title.match(/\((\d+)\s*pcs\)/i);
+      const totalQuantity = quantityMatch ? parseInt(quantityMatch[1]) : 1;
+
+      // Рассчитываем Price Per Unit
+      const pricePerUnit = totalQuantity > 0 ? parseFloat(goalEth) / totalQuantity : parseFloat(goalEth);
+      const pricePerUnitFormatted = pricePerUnit.toFixed(6);
 
       // Время
       const timeLeft = deadline - now;
       const isExpired = timeLeft <= 0;
       const timeLeftText = isExpired ? 'Ended' : formatTimeLeft(timeLeft);
 
+      // Проверка достижения цели
+      const isGoalReached = pledgedNum >= goalNum && goalNum > 0;
+
+      // Проверка владельца кампании
+      const isOwner = userAddress && owner.toLowerCase() === userAddress.toLowerCase();
+
       // Статус
       let statusBadge = '';
       if (finalized) {
         statusBadge = '<span class="badge badge-completed">✓ Finalized</span>';
+      } else if (isGoalReached) {
+        statusBadge = '<span class="badge badge-success">🎉 SOLD OUT</span>';
       } else if (isExpired) {
-        statusBadge = progress >= 100
-          ? '<span class="badge badge-active">🎉 Goal Reached</span>'
-          : '<span class="badge badge-pending">⏰ Expired</span>';
+        statusBadge = '<span class="badge badge-pending">⏰ Expired</span>';
       } else {
         statusBadge = '<span class="badge badge-active">🔥 Active</span>';
       }
 
+      // Генерация footer в зависимости от состояния
+      let footerHTML = '';
+
+      if (!finalized) {
+        if (isGoalReached && isExpired) {
+          // Цель достигнута И кампания завершилась - можно вывести средства
+          if (isOwner) {
+            footerHTML = `
+              <div class="campaign-card-footer">
+                <div class="text-center mb-2">
+                  <span class="text-green-400 font-semibold">🎉 Ready for Withdrawal!</span>
+                </div>
+                <button 
+                  class="btn-success w-full"
+                  onclick="withdrawFunds(${index})"
+                >
+                  💰 Withdraw ${parseFloat(pledgedEth).toFixed(4)} ETH
+                </button>
+              </div>
+            `;
+          } else {
+            footerHTML = `
+              <div class="campaign-card-footer">
+                <div class="text-center py-2">
+                  <span class="text-green-400">✅ Funded & Completed - Production Started!</span>
+                </div>
+              </div>
+            `;
+          }
+        } else if (isGoalReached && !isExpired) {
+          // Цель достигнута, но кампания ещё не завершилась
+          footerHTML = `
+            <div class="campaign-card-footer">
+              <div class="text-center py-2">
+                <span class="text-green-400 font-semibold">🎉 SOLD OUT!</span>
+                <p class="text-gray-400 text-sm mt-1">Withdrawal available after campaign ends (${timeLeftText})</p>
+              </div>
+            </div>
+          `;
+        } else if (!isExpired) {
+          // Активная кампания - можно покупать
+          footerHTML = `
+            <div class="campaign-card-footer">
+              <div class="space-y-2">
+                <div class="flex gap-2 items-center">
+                  <input 
+                    type="number" 
+                    id="buy-quantity-${index}"
+                    class="input-field flex-1" 
+                    placeholder="Qty"
+                    min="1"
+                    max="${totalQuantity}"
+                    oninput="calculateBuyCost(${index}, ${pricePerUnit})"
+                  >
+                  <span class="text-sm text-gray-400">items</span>
+                </div>
+                <div class="flex justify-between items-center px-2 py-1 bg-dark-800 rounded">
+                  <span class="text-sm text-gray-400">Total Cost:</span>
+                  <span id="buy-cost-${index}" class="font-semibold text-gradient">0.00 ETH</span>
+                </div>
+                <button 
+                  class="btn-primary w-full"
+                  onclick="contribute(${index}, ${pricePerUnit})"
+                >
+                  🛒 Buy Items
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          // Истёкшая кампания без достижения цели
+          if (isOwner) {
+            footerHTML = `
+              <div class="campaign-card-footer">
+                <button 
+                  class="btn-secondary w-full"
+                  onclick="finalizeCampaign(${index})"
+                >
+                  ✅ Finalize Campaign
+                </button>
+              </div>
+            `;
+          } else {
+            footerHTML = `
+              <div class="campaign-card-footer">
+                <div class="text-center py-2">
+                  <span class="text-gray-400">⏰ Campaign Ended - Goal Not Reached</span>
+                </div>
+              </div>
+            `;
+          }
+        }
+      }
+
       // HTML карточки
       const cardHTML = `
-        <div class="campaign-card" data-campaign-id="${index}">
+        <div class="campaign-card" data-campaign-id="${index}" data-price-per-unit="${pricePerUnit}">
           <div class="campaign-card-header">
             <div class="flex items-center justify-between mb-2">
               <h3 class="text-lg font-semibold">${escapeHtml(title)}</h3>
               ${statusBadge}
             </div>
-            <p class="text-sm text-gray-400">by ${owner.slice(0, 6)}...${owner.slice(-4)}</p>
+            <p class="text-sm text-gray-400">by ${owner.slice(0, 6)}...${owner.slice(-4)}${isOwner ? ' (You)' : ''}</p>
           </div>
 
           <div class="campaign-card-body">
@@ -472,7 +664,7 @@ async function loadCampaigns() {
                 <span class="font-medium">${progressCapped}%</span>
               </div>
               <div class="progress-bar">
-                <div class="progress-bar-fill" style="width: ${progressCapped}%"></div>
+                <div class="progress-bar-fill ${isGoalReached ? 'bg-green-500' : ''}" style="width: ${progressCapped}%"></div>
               </div>
             </div>
 
@@ -487,47 +679,21 @@ async function loadCampaigns() {
                 <p class="font-semibold">${parseFloat(goalEth).toFixed(4)} ETH</p>
               </div>
               <div>
-                <p class="text-gray-400">Time Left</p>
-                <p class="font-semibold ${isExpired ? 'text-red-400' : ''}">${timeLeftText}</p>
+                <p class="text-gray-400">Price/Unit</p>
+                <p class="font-semibold text-purple-400">${pricePerUnitFormatted} ETH</p>
               </div>
               <div>
-                <p class="text-gray-400">Backers</p>
-                <p class="font-semibold">—</p>
+                <p class="text-gray-400">Total Items</p>
+                <p class="font-semibold">${totalQuantity} pcs</p>
+              </div>
+              <div>
+                <p class="text-gray-400">Time Left</p>
+                <p class="font-semibold ${isExpired ? 'text-red-400' : ''}">${timeLeftText}</p>
               </div>
             </div>
           </div>
 
-          ${!finalized ? `
-          <div class="campaign-card-footer">
-            ${!isExpired ? `
-            <!-- Active Campaign: Contribute -->
-            <div class="flex gap-2">
-              <input 
-                type="number" 
-                id="contribute-amount-${index}"
-                class="input-field flex-1" 
-                placeholder="0.01 ETH"
-                step="0.001"
-                min="0.001"
-              >
-              <button 
-                class="btn-primary"
-                onclick="contribute(${index})"
-              >
-                💰 Contribute
-              </button>
-            </div>
-            ` : `
-            <!-- Expired: Finalize Campaign -->
-            <button 
-              class="btn-secondary w-full"
-              onclick="finalizeCampaign(${index})"
-            >
-              ✅ Finalize Campaign
-            </button>
-            `}
-          </div>
-          ` : ''}
+          ${footerHTML}
         </div>
       `;
 
@@ -550,18 +716,33 @@ async function loadCampaigns() {
   }
 }
 
-// === Contribute to Campaign ===
-async function contribute(campaignId) {
-  const amountInput = document.getElementById(`contribute-amount-${campaignId}`);
-  const contributeBtn = amountInput.parentElement.querySelector('.btn-primary');
+// === Calculate Buy Cost (Quantity * Price Per Unit) ===
+function calculateBuyCost(campaignId, pricePerUnit) {
+  const quantityInput = document.getElementById(`buy-quantity-${campaignId}`);
+  const costDisplay = document.getElementById(`buy-cost-${campaignId}`);
 
-  // Получаем значение
-  const amountEth = amountInput.value;
+  const quantity = parseInt(quantityInput.value) || 0;
+  const totalCost = quantity * pricePerUnit;
 
-  if (!amountEth || parseFloat(amountEth) <= 0) {
-    alert('⚠️ Please enter a valid amount!');
+  costDisplay.textContent = `${totalCost.toFixed(6)} ETH`;
+}
+
+// === Contribute to Campaign (Buy Items) ===
+async function contribute(campaignId, pricePerUnit) {
+  const quantityInput = document.getElementById(`buy-quantity-${campaignId}`);
+  const costDisplay = document.getElementById(`buy-cost-${campaignId}`);
+  const contributeBtn = quantityInput.closest('.space-y-2').querySelector('.btn-primary');
+
+  // Получаем количество
+  const quantity = parseInt(quantityInput.value) || 0;
+
+  if (quantity <= 0) {
+    alert('⚠️ Please enter a valid quantity!');
     return;
   }
+
+  // Рассчитываем стоимость
+  const totalCostEth = quantity * pricePerUnit;
 
   // Сохраняем оригинальный текст кнопки
   const originalBtnText = contributeBtn.innerHTML;
@@ -570,18 +751,20 @@ async function contribute(campaignId) {
     // UX: Показываем статус загрузки
     contributeBtn.innerHTML = '⏳ Processing...';
     contributeBtn.disabled = true;
-    amountInput.disabled = true;
+    quantityInput.disabled = true;
 
     // Конвертация ETH в Wei
-    const amountWei = ethers.parseEther(amountEth);
+    const amountWei = ethers.parseEther(totalCostEth.toFixed(18));
 
-    console.log('💰 Contributing to campaign:', {
+    console.log('🛒 Buying items:', {
       campaignId,
-      amountEth,
+      quantity,
+      pricePerUnit,
+      totalCostEth,
       amountWei: amountWei.toString()
     });
 
-    // Вызов контракта с отправкой ETH (метод называется contribute, не pledge)
+    // Вызов контракта с отправкой ETH
     const tx = await crowdfundingContract.contribute(campaignId, {
       value: amountWei
     });
@@ -592,30 +775,32 @@ async function contribute(campaignId) {
 
     await tx.wait();
 
-    console.log('✅ Contribution successful!');
-    alert(`🎉 Successfully contributed ${amountEth} ETH!`);
+    console.log('✅ Purchase successful!');
+    alert(`🎉 Successfully bought ${quantity} items for ${totalCostEth.toFixed(6)} ETH!`);
 
-    // Очистка поля ввода
-    amountInput.value = '';
+    // Очистка полей
+    quantityInput.value = '';
+    costDisplay.textContent = '0.00 ETH';
 
-    // Обновление списка кампаний для отображения нового прогресса
+    // Обновление списка кампаний и статов
     await loadCampaigns();
+    await updateUserStats();
 
   } catch (error) {
-    console.error('❌ Contribution failed:', error);
+    console.error('❌ Purchase failed:', error);
 
     if (error.code === 'ACTION_REJECTED') {
       alert('Transaction was rejected by user.');
     } else if (error.reason) {
       alert(`Error: ${error.reason}`);
     } else {
-      alert('Failed to contribute. Check console for details.');
+      alert('Failed to buy items. Check console for details.');
     }
 
     // Восстанавливаем кнопку при ошибке
     contributeBtn.innerHTML = originalBtnText;
     contributeBtn.disabled = false;
-    amountInput.disabled = false;
+    quantityInput.disabled = false;
   }
 }
 
@@ -653,6 +838,48 @@ async function finalizeCampaign(campaignId) {
       alert(`Error: ${error.reason}`);
     } else {
       alert('Failed to finalize campaign. Check console for details.');
+    }
+
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// === Withdraw Funds (For Campaign Owner) ===
+async function withdrawFunds(campaignId) {
+  const btn = event.target;
+  const originalText = btn.innerHTML;
+
+  try {
+    btn.innerHTML = '⏳ Processing...';
+    btn.disabled = true;
+
+    console.log('💰 Withdrawing funds from campaign:', campaignId);
+
+    // Вызываем finalizeCampaign который переводит средства владельцу
+    const tx = await crowdfundingContract.finalizeCampaign(campaignId);
+
+    btn.innerHTML = '⛏️ Mining...';
+    console.log('⏳ Waiting for transaction:', tx.hash);
+
+    await tx.wait();
+
+    console.log('✅ Funds withdrawn successfully!');
+    alert('🎉 Funds have been transferred to your wallet!');
+
+    // Обновление UI
+    await loadCampaigns();
+    await updateUserStats();
+
+  } catch (error) {
+    console.error('❌ Withdrawal failed:', error);
+
+    if (error.code === 'ACTION_REJECTED') {
+      alert('Transaction was rejected by user.');
+    } else if (error.reason) {
+      alert(`Error: ${error.reason}`);
+    } else {
+      alert('Failed to withdraw funds. Check console for details.');
     }
 
     btn.innerHTML = originalText;
