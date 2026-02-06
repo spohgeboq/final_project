@@ -1,66 +1,187 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Decentralized Crowdfunding</title>
-    <link rel="stylesheet" href="style.css" />
-    <!-- Ethers.js CDN -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="FactoryPool - Decentralized Campaign Management Platform">
+    <title>FactoryPool</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        dark: {
+                            900: '#0A0A0A',
+                            800: '#111111',
+                            700: '#1A1A1A',
+                            600: '#262626',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Ethers.js v6 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
-  </head>
-  <body>
-    <header>
-      <h1>DApp Crowdfunding</h1>
-      <div id="userInfo">
-        <button id="connectWalletBtn">Connect Wallet</button>
-        <div id="walletDetails" class="hidden">
-          <p>Address: <span id="userAddress"></span></p>
-          <p>Network: <span id="networkName"></span></p>
-          <p>ETH Balance: <span id="ethBalance">0</span> ETH</p>
-          <p>Reward Tokens: <span id="tokenBalance">0</span> CWD</p>
-        </div>
-      </div>
-    </header>
+</head>
+<body class="bg-dark-900 text-white font-sans min-h-screen">
 
-    <main>
-      <section id="createCampaignSection">
-        <h2>Create New Campaign</h2>
-        <form id="createCampaignForm">
-          <div class="form-group">
-            <label for="title">Title:</label>
-            <input
-              type="text"
-              id="title"
-              required
-              placeholder="e.g. Save the Ocean"
-            />
-          </div>
-          <div class="form-group">
-            <label for="goal">Goal (ETH):</label>
-            <input
-              type="number"
-              id="goal"
-              step="0.01"
-              required
-              placeholder="1.0"
-            />
-          </div>
-          <div class="form-group">
-            <label for="duration">Duration (Seconds):</label>
-            <input type="number" id="duration" required placeholder="3600" />
-          </div>
-          <button type="submit">Create Campaign</button>
-        </form>
-      </section>
-
-      <section id="campaignsSection">
-        <h2>Active Campaigns</h2>
-        <div id="campaignsList">
-          <p>Loading campaigns...</p>
+    <!-- Navigation Bar -->
+    <nav id="navbar" class="sticky top-0 z-50 backdrop-blur-xl bg-dark-900/80 border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="logo text-xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
+                FactoryPool
+            </div>
+            <div class="flex items-center gap-4">
+                <!-- User Stats (hidden until connected) -->
+                <div id="user-stats" class="hidden flex items-center gap-3 text-sm">
+                    <div class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-dark-700 border border-white/10">
+                        <span class="text-gray-400">ETH:</span>
+                        <span id="eth-balance" class="font-semibold">0.00</span>
+                    </div>
+                    <div class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-dark-700 border border-white/10">
+                        <span class="text-gray-400">🪙</span>
+                        <span id="token-balance" class="font-semibold text-gradient">0</span>
+                    </div>
+                </div>
+                <button id="connect-wallet-btn" class="btn-primary">
+                    Connect Wallet
+                </button>
+            </div>
         </div>
-      </section>
+    </nav>
+
+    <!-- Gatekeeper Overlay (hidden by default) -->
+    <div id="gatekeeper" class="gatekeeper-overlay" hidden>
+        <div class="gatekeeper-card">
+            <div class="text-6xl mb-6">🔐</div>
+            <h2 class="text-2xl font-bold mb-3">Welcome to FactoryPool</h2>
+            <p class="text-gray-400 mb-6">Connect your wallet to access the dashboard</p>
+            <button id="gatekeeper-connect-btn" class="btn-primary w-full">
+                Connect Wallet
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Dashboard (hidden by default) -->
+    <main id="dashboard" class="max-w-7xl mx-auto px-6 py-8" hidden>
+        
+        <!-- Tab Buttons (Segmented Control) -->
+        <div id="tabs" class="tabs-container">
+            <button id="tab-factory" class="tab-btn" onclick="switchTab('factory')">🏭 I am a Factory</button>
+            <button id="tab-seller" class="tab-btn active" onclick="switchTab('seller')">🏪 I am a Seller</button>
+        </div>
+
+        <!-- Factory View: Create Campaign Form -->
+        <section id="factory-view" class="view-section" hidden>
+            <div class="card" style="max-width: 600px;">
+                <h2 class="text-xl font-bold mb-6 text-gradient">🏭 Create New Campaign</h2>
+                
+                <form id="create-campaign-form" onsubmit="return false;">
+                    <!-- Campaign Title -->
+                    <div class="form-group">
+                        <label class="form-label" for="campaign-title">Campaign Title</label>
+                        <input 
+                            type="text" 
+                            id="campaign-title" 
+                            class="input-field" 
+                            placeholder="Enter campaign title..."
+                            required
+                        >
+                    </div>
+
+                    <!-- Funding Goal -->
+                    <div class="form-group">
+                        <label class="form-label" for="campaign-goal">Funding Goal (ETH)</label>
+                        <input 
+                            type="number" 
+                            id="campaign-goal" 
+                            class="input-field" 
+                            placeholder="0.1"
+                            step="0.001"
+                            min="0.001"
+                            required
+                        >
+                    </div>
+
+                    <!-- Duration -->
+                    <div class="form-group">
+                        <label class="form-label">Campaign Duration</label>
+                        <div class="flex gap-3">
+                            <div class="flex-1">
+                                <input 
+                                    type="number" 
+                                    id="campaign-days" 
+                                    class="input-field" 
+                                    placeholder="Days"
+                                    min="0"
+                                    max="365"
+                                    value="0"
+                                >
+                                <span class="text-xs text-gray-400 mt-1 block">Days</span>
+                            </div>
+                            <div class="flex-1">
+                                <input 
+                                    type="number" 
+                                    id="campaign-hours" 
+                                    class="input-field" 
+                                    placeholder="Hours"
+                                    min="0"
+                                    max="23"
+                                    value="0"
+                                >
+                                <span class="text-xs text-gray-400 mt-1 block">Hours</span>
+                            </div>
+                            <div class="flex-1">
+                                <input 
+                                    type="number" 
+                                    id="campaign-minutes" 
+                                    class="input-field" 
+                                    placeholder="Minutes"
+                                    min="0"
+                                    max="59"
+                                    value="5"
+                                >
+                                <span class="text-xs text-gray-400 mt-1 block">Minutes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button 
+                        type="button" 
+                        id="create-campaign-btn"
+                        class="btn-primary w-full mt-4"
+                        onclick="createCampaign()"
+                    >
+                        🚀 Create Campaign
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Seller View: Campaign Cards Grid (Default View) -->
+        <section id="seller-view" class="view-section">
+        </section>
+
     </main>
 
+    <!-- Application Script -->
     <script src="app.js"></script>
-  </body>
+</body>
 </html>

@@ -1,136 +1,345 @@
+/* ================================================
+   FactoryPool - Vercel-Style Dark Theme
+   ================================================ */
+
+/* === Base Reset & Variables === */
 :root {
-  --primary-color: #3f51b5;
-  --secondary-color: #ff4081;
-  --background-color: #f5f5f5;
-  --text-color: #333;
-  --card-bg: #fff;
+    --dark-900: #0A0A0A;
+    --dark-800: #111111;
+    --dark-700: #1A1A1A;
+    --dark-600: #262626;
+    --border-subtle: rgba(255, 255, 255, 0.1);
+    --border-hover: rgba(255, 255, 255, 0.2);
+    --accent-primary: #6366f1;
+    --accent-hover: #818cf8;
+    --accent-glow: rgba(99, 102, 241, 0.4);
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
 }
 
-body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  margin: 0;
-  padding: 0;
-  background-color: var(--background-color);
-  color: var(--text-color);
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-header {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* === Primary Button === */
+.btn-primary {
+    background: var(--accent-primary);
+    color: white;
+    font-weight: 500;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
 }
 
-header h1 {
-  margin: 0;
+.btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 0 20px var(--accent-glow);
+    transform: translateY(-1px);
 }
 
-button {
-  background-color: var(--secondary-color);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.3s;
+.btn-primary:active {
+    transform: translateY(0);
 }
 
-button:hover {
-  background-color: #ec2f6f;
+/* === Secondary Button === */
+.btn-secondary {
+    background: var(--dark-700);
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-subtle);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
 }
 
-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+.btn-secondary:hover {
+    background: var(--dark-600);
+    border-color: var(--border-hover);
 }
 
-.hidden {
-  display: none;
+/* === Refund Button (Red) === */
+.btn-refund {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    font-weight: 500;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
 }
 
-main {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+.btn-refund:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
 }
 
-section {
-  background-color: var(--card-bg);
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+/* === Gatekeeper Overlay === */
+.gatekeeper-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dark-900);
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent);
 }
 
+.gatekeeper-card {
+    background: var(--dark-800);
+    border: 1px solid var(--border-subtle);
+    border-radius: 1rem;
+    padding: 3rem;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow:
+        0 0 0 1px var(--border-subtle),
+        0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* === Tabs (Segmented Control - iOS Style) === */
+.tabs-container {
+    display: inline-flex;
+    background: var(--dark-800);
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.75rem;
+    padding: 0.25rem;
+    margin-bottom: 2rem;
+}
+
+.tab-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    position: relative;
+}
+
+.tab-btn:hover:not(.active) {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: var(--dark-600);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* === View Sections === */
+.view-section {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === Cards === */
+.card {
+    background: var(--dark-800);
+    border: 1px solid var(--border-subtle);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    border-color: var(--border-hover);
+    box-shadow:
+        0 0 30px rgba(99, 102, 241, 0.1),
+        0 10px 40px -10px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+/* === Form Inputs === */
+.input-field {
+    width: 100%;
+    background: var(--dark-700);
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.input-field::placeholder {
+    color: var(--text-muted);
+}
+
+.input-field:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.input-field:hover:not(:focus) {
+    border-color: var(--border-hover);
+}
+
+/* === Form Groups === */
 .form-group {
-  margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
 }
 
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
+.form-label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
 }
 
-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-#campaignsList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+/* === Campaign Cards Grid === */
+.campaigns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
 }
 
 .campaign-card {
-  border: 1px solid #eee;
-  padding: 1.5rem;
-  border-radius: 8px;
-  background: #fafafa;
+    background: var(--dark-800);
+    border: 1px solid var(--border-subtle);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
-.campaign-card h3 {
-  margin-top: 0;
-  color: var(--primary-color);
+.campaign-card:hover {
+    border-color: var(--border-hover);
+    box-shadow:
+        0 0 40px rgba(99, 102, 241, 0.15),
+        0 20px 40px -20px rgba(0, 0, 0, 0.5);
+    transform: translateY(-4px);
 }
 
-.campaign-status {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
+.campaign-card-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
-.status-active {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+.campaign-card-body {
+    padding: 1.25rem;
 }
 
-.status-ended {
-  background-color: #ffebee;
-  color: #c62828;
+.campaign-card-footer {
+    padding: 1.25rem;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--dark-700);
 }
 
+/* === Progress Bar === */
 .progress-bar {
-  background-color: #e0e0e0;
-  height: 10px;
-  border-radius: 5px;
-  margin: 10px 0;
-  overflow: hidden;
+    width: 100%;
+    height: 0.5rem;
+    background: var(--dark-600);
+    border-radius: 9999px;
+    overflow: hidden;
 }
 
-.progress-fill {
-  background-color: var(--primary-color);
-  height: 100%;
-  width: 0%;
-  transition: width 0.5s ease-in-out;
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-hover));
+    border-radius: 9999px;
+    transition: width 0.5s ease;
+}
+
+/* === Status Badges === */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-active {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge-pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.badge-completed {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+/* === Utility Classes === */
+.text-gradient {
+    background: linear-gradient(135deg, var(--accent-primary), #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* === Scrollbar Styling === */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--dark-800);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--dark-600);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-hover);
+}
+
+/* === Responsive Adjustments === */
+@media (max-width: 640px) {
+    .tabs-container {
+        width: 100%;
+        display: flex;
+    }
+
+    .tab-btn {
+        flex: 1;
+        text-align: center;
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .gatekeeper-card {
+        padding: 2rem 1.5rem;
+    }
 }
