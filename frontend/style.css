@@ -392,3 +392,269 @@
         padding: 2rem 1.5rem;
     }
 }
+
+/* === Toast Notifications === */
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    background: rgba(17, 17, 17, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.75rem;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.3),
+        0 2px 4px -2px rgba(0, 0, 0, 0.2);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    pointer-events: auto;
+    animation: toastSlideIn 0.3s ease-out;
+    max-width: 380px;
+    min-width: 280px;
+}
+
+.toast-success {
+    border-color: rgba(34, 197, 94, 0.4);
+}
+
+.toast-error {
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.toast-loading {
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.toast-icon {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.toast-icon-success {
+    color: #22c55e;
+}
+
+.toast-icon-error {
+    color: #ef4444;
+}
+
+.toast-icon-loading {
+    color: #6366f1;
+    animation: spin 1s linear infinite;
+}
+
+.toast-message {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.toast-exit {
+    animation: toastFadeOut 0.3s ease-in forwards;
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toastFadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* === Ethereum Blockies Avatars === */
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.avatar-md {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.avatar-card {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.avatar-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* === Card Product Images === */
+.card-image-container {
+    position: relative;
+    width: 100%;
+    height: 160px;
+    overflow: hidden;
+    border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.85;
+    transition: all 0.3s ease;
+}
+
+.card-image:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.category-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Category color classes */
+.bg-blue-500\/20 {
+    background-color: rgba(59, 130, 246, 0.2);
+}
+
+.text-blue-400 {
+    color: #60a5fa;
+}
+
+.bg-pink-500\/20 {
+    background-color: rgba(236, 72, 153, 0.2);
+}
+
+.text-pink-400 {
+    color: #f472b6;
+}
+
+.bg-amber-500\/20 {
+    background-color: rgba(245, 158, 11, 0.2);
+}
+
+.text-amber-400 {
+    color: #fbbf24;
+}
+
+.bg-green-500\/20 {
+    background-color: rgba(34, 197, 94, 0.2);
+}
+
+.text-green-400 {
+    color: #4ade80;
+}
+
+.bg-purple-500\/20 {
+    background-color: rgba(168, 85, 247, 0.2);
+}
+
+.text-purple-400 {
+    color: #c084fc;
+}
+
+.bg-cyan-500\/20 {
+    background-color: rgba(6, 182, 212, 0.2);
+}
+
+.text-cyan-400 {
+    color: #22d3ee;
+}
+
+/* === Factory Dashboard Cards === */
+.factory-card {
+    border: 1px solid rgba(129, 140, 248, 0.3);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+}
+
+.factory-card:hover {
+    border-color: rgba(129, 140, 248, 0.5);
+    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
+}
+
+.factory-campaigns-section {
+    margin-top: 2rem;
+}
+
+.col-span-full {
+    grid-column: 1 / -1;
+}
+
+/* === Action Buttons === */
+.btn-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}

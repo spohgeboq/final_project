@@ -33,6 +33,75 @@ const tabSeller = document.getElementById('tab-seller');
 const factoryView = document.getElementById('factory-view');
 const sellerView = document.getElementById('seller-view');
 
+// === Toast Notification System ===
+const toastContainer = document.getElementById('toast-container');
+
+const TOAST_ICONS = {
+  success: `<svg class="toast-icon toast-icon-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+  </svg>`,
+  error: `<svg class="toast-icon toast-icon-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+  </svg>`,
+  loading: `<svg class="toast-icon toast-icon-loading" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+  </svg>`,
+  info: `<svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #6366f1;">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+  </svg>`
+};
+
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  const icon = TOAST_ICONS[type] || TOAST_ICONS.info;
+
+  toast.innerHTML = `
+    ${icon}
+    <span class="toast-message">${message}</span>
+  `;
+
+  toastContainer.appendChild(toast);
+
+  // Auto-remove after 4 seconds (except for loading toasts)
+  if (type !== 'loading') {
+    setTimeout(() => {
+      removeToast(toast);
+    }, 4000);
+  }
+
+  return toast;
+}
+
+function removeToast(toast) {
+  if (!toast || !toast.parentNode) return;
+
+  toast.classList.add('toast-exit');
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.parentNode.removeChild(toast);
+    }
+  }, 300);
+}
+
+// === Ethereum Blockies Avatar ===
+function renderAvatar(address, size = 8, scale = 4) {
+  if (!address || !window.blockies) return null;
+
+  try {
+    const avatar = blockies.create({
+      seed: address.toLowerCase(),
+      size: size,
+      scale: scale
+    });
+    return avatar.toDataURL();
+  } catch (error) {
+    console.error('Failed to create blockie:', error);
+    return null;
+  }
+}
+
 // === Initialization ===
 async function init() {
   try {
@@ -176,7 +245,7 @@ async function connectWallet() {
   try {
     // Проверка наличия MetaMask
     if (!window.ethereum) {
-      alert('🦊 Please install MetaMask to use this application!');
+      showToast('🦊 Please install MetaMask to use this application!', 'error');
       return;
     }
 
@@ -206,13 +275,15 @@ async function connectWallet() {
     updateWalletUI();
     showDashboard();
 
+    showToast('Wallet connected successfully!', 'success');
+
   } catch (error) {
     console.error('❌ Wallet connection failed:', error);
 
     if (error.code === 4001) {
-      alert('Connection rejected. Please approve the connection request.');
+      showToast('Connection rejected. Please approve the request.', 'error');
     } else {
-      alert('Failed to connect wallet. Check console for details.');
+      showToast('Failed to connect wallet', 'error');
     }
   }
 }
@@ -258,6 +329,18 @@ function updateWalletUI() {
   const shortAddress = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
   connectWalletBtn.textContent = shortAddress;
   connectWalletBtn.classList.add('connected');
+
+  // Отображение аватара пользователя
+  const userAvatarContainer = document.getElementById('user-avatar');
+  const userAvatarImg = document.getElementById('user-avatar-img');
+
+  if (userAvatarContainer && userAvatarImg) {
+    const avatarUrl = renderAvatar(userAddress, 8, 4);
+    if (avatarUrl) {
+      userAvatarImg.src = avatarUrl;
+      userAvatarContainer.classList.remove('hidden');
+    }
+  }
 }
 
 // === Update User Stats (Balances) ===
@@ -292,12 +375,12 @@ async function updateUserStats() {
 async function addTokenToMetaMask() {
   try {
     if (!window.ethereum) {
-      alert('🦊 MetaMask is not installed!');
+      showToast('🦊 MetaMask is not installed!', 'error');
       return;
     }
 
     const tokenAddress = CONTRACT_ADDRESS.RewardToken;
-    const tokenSymbol = 'FPT'; // FactoryPool Token
+    const tokenSymbol = 'CWD'; // CrowdReward Token (from RewardToken.sol)
     const tokenDecimals = 18;
 
     const wasAdded = await window.ethereum.request({
@@ -313,14 +396,15 @@ async function addTokenToMetaMask() {
     });
 
     if (wasAdded) {
-      console.log('✅ FPT Token added to MetaMask!');
-      alert('🎉 FPT Token added to your MetaMask wallet!');
+      console.log('✅ CWD Token added to MetaMask!');
+      showToast('🎉 CrowdReward (CWD) Token added to wallet!', 'success');
     } else {
       console.log('❌ User declined to add token');
+      showToast('Token addition cancelled', 'info');
     }
   } catch (error) {
     console.error('❌ Failed to add token to MetaMask:', error);
-    alert('Failed to add token. Check console for details.');
+    showToast('Failed to add token to MetaMask', 'error');
   }
 }
 
@@ -336,9 +420,329 @@ function showDashboard() {
   // Загрузка кампаний и обновление статов
   loadCampaigns();
   updateUserStats();
+  renderFactoryDashboard();
 }
 
-// === Tab Switching ===
+// === Factory Dashboard: Render Owner's Campaigns ===
+// Hidden campaigns stored in localStorage
+function getHiddenCampaigns() {
+  try {
+    const hidden = localStorage.getItem('factorypool_hidden_campaigns');
+    return hidden ? JSON.parse(hidden) : [];
+  } catch {
+    return [];
+  }
+}
+
+function hideFactoryCampaign(campaignId) {
+  const hidden = getHiddenCampaigns();
+  if (!hidden.includes(campaignId)) {
+    hidden.push(campaignId);
+    localStorage.setItem('factorypool_hidden_campaigns', JSON.stringify(hidden));
+  }
+  renderFactoryDashboard();
+  showToast('Campaign hidden from dashboard', 'info');
+}
+
+async function renderFactoryDashboard() {
+  const grid = document.getElementById('factory-campaigns-grid');
+  const totalCampaignsEl = document.getElementById('factory-total-campaigns');
+  const totalRaisedEl = document.getElementById('factory-total-raised');
+
+  if (!grid || !crowdfundingContract || !userAddress) return;
+
+  try {
+    // Получаем скрытые кампании из localStorage
+    const hiddenCampaigns = getHiddenCampaigns();
+
+    // Получаем количество кампаний и загружаем каждую по id
+    const campaignCount = await crowdfundingContract.campaignCount();
+    const now = Math.floor(Date.now() / 1000);
+
+    // Фильтрация кампаний владельца (исключая finalized и скрытые)
+    const myCampaigns = [];
+    let totalRaised = 0n;
+
+    for (let i = 0; i < campaignCount; i++) {
+      const campaign = await crowdfundingContract.campaigns(i);
+
+      // Только кампании текущего пользователя
+      if (campaign.creator.toLowerCase() !== userAddress.toLowerCase()) continue;
+
+      // Пропускаем deleted (отменённые в блокчейне), finalized (уже выведены средства) и скрытые локально
+      if (campaign.deleted || campaign.finalized || hiddenCampaigns.includes(i)) continue;
+
+      // Явно извлекаем свойства
+      myCampaigns.push({
+        id: i,
+        campaignId: campaign.campaignId,
+        title: campaign.title,
+        creator: campaign.creator,
+        fundingGoal: campaign.fundingGoal,
+        deadline: campaign.deadline,
+        totalRaised: campaign.totalRaised,
+        finalized: campaign.finalized,
+        deleted: campaign.deleted
+      });
+      totalRaised += campaign.totalRaised;
+    }
+
+    // Обновление статистики
+    if (totalCampaignsEl) totalCampaignsEl.textContent = myCampaigns.length;
+    if (totalRaisedEl) totalRaisedEl.textContent = `${parseFloat(ethers.formatEther(totalRaised)).toFixed(4)} ETH`;
+
+    // Если нет кампаний
+    if (myCampaigns.length === 0) {
+      grid.innerHTML = `
+        <div class="card text-center py-8 opacity-60 col-span-full">
+          <p class="text-gray-400">No campaigns created yet. Create your first production batch above!</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Рендеринг кампаний
+    grid.innerHTML = '';
+
+    myCampaigns.forEach((campaign) => {
+      const index = campaign.id;
+      const rawTitle = campaign.title;
+      const [title, customImageUrl] = rawTitle.split('|||');
+
+      const goal = campaign.fundingGoal;
+      const pledged = campaign.totalRaised;
+      const deadline = Number(campaign.deadline);
+      const finalized = campaign.finalized;
+
+      const goalEth = ethers.formatEther(goal);
+      const pledgedEth = ethers.formatEther(pledged);
+      const goalNum = parseFloat(goalEth);
+      const pledgedNum = parseFloat(pledgedEth);
+      const progress = goalNum > 0 ? (pledgedNum / goalNum) * 100 : 0;
+      const progressCapped = Math.min(Math.round(progress), 100);
+
+      const timeLeft = deadline - now;
+      const isExpired = timeLeft <= 0;
+      const timeLeftText = isExpired ? 'Ended' : formatTimeLeft(timeLeft);
+      const isGoalReached = pledgedNum >= goalNum && goalNum > 0;
+
+      // Статус badge
+      let statusBadge = '';
+      if (finalized) {
+        statusBadge = '<span class="badge badge-completed">✓ Withdrawn</span>';
+      } else if (isGoalReached) {
+        statusBadge = '<span class="badge badge-success">🎉 Goal Reached!</span>';
+      } else if (isExpired) {
+        statusBadge = '<span class="badge badge-pending">⏰ Expired</span>';
+      } else {
+        statusBadge = '<span class="badge badge-active">🔥 Active</span>';
+      }
+
+      // Image HTML
+      let imageHTML = '';
+      if (customImageUrl && customImageUrl.trim()) {
+        imageHTML = `
+          <div class="card-image-container">
+            <img src="${escapeHtml(customImageUrl.trim())}" class="card-image" alt="Product" loading="lazy" onerror="this.parentElement.style.display='none'">
+          </div>
+        `;
+      }
+
+      // Action buttons
+      let actionHTML = '';
+      if (!finalized) {
+        if (isGoalReached && isExpired) {
+          // Goal reached & expired - can withdraw
+          actionHTML = `
+            <button class="btn-success w-full" onclick="claimFunds(${index})">
+              💰 Withdraw ${pledgedNum.toFixed(4)} ETH
+            </button>
+          `;
+        } else if (isGoalReached && !isExpired) {
+          // Goal reached but not expired yet
+          actionHTML = `
+            <div class="text-center py-2">
+              <span class="text-green-400 font-semibold">🎉 Goal Reached!</span>
+              <p class="text-gray-400 text-xs mt-1">Withdraw available in: ${timeLeftText}</p>
+            </div>
+          `;
+        } else if (pledgedNum === 0 && !isExpired) {
+          // ❌ No investors = Can DELETE/CANCEL via blockchain
+          actionHTML = `
+            <button class="btn-danger w-full" onclick="cancelCampaignHandler(${index})">
+              ❌ Delete Campaign
+            </button>
+          `;
+        } else if (!isExpired) {
+          // Active with some investments
+          actionHTML = `
+            <div class="text-center py-2">
+              <span class="text-indigo-400">📈 Funding in progress</span>
+              <p class="text-gray-400 text-xs mt-1">${progressCapped}% funded • ${timeLeftText} left</p>
+            </div>
+          `;
+        } else {
+          // Expired but goal not reached (with some funds) - can only archive locally
+          actionHTML = `
+            <div class="text-center py-2">
+              <span class="text-red-400">❌ Goal not reached</span>
+              <p class="text-gray-400 text-xs mt-1">Campaign ended • ${pledgedNum.toFixed(4)} ETH raised</p>
+              <button class="btn-secondary w-full mt-2 text-xs" onclick="hideFactoryCampaign(${index})">
+                Archive Campaign
+              </button>
+            </div>
+          `;
+        }
+      } else {
+        actionHTML = `
+          <div class="text-center py-2">
+            <span class="text-gray-400">✅ Funds claimed</span>
+          </div>
+        `;
+      }
+
+      const cardHTML = `
+        <div class="campaign-card factory-card" data-campaign-id="${index}">
+          ${imageHTML}
+          <div class="campaign-card-header">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-lg font-semibold">${escapeHtml(title)}</h3>
+              ${statusBadge}
+            </div>
+          </div>
+          
+          <div class="campaign-card-body">
+            <!-- Progress Bar -->
+            <div class="mb-4">
+              <div class="flex justify-between text-sm mb-2">
+                <span class="text-gray-400">Progress</span>
+                <span class="font-medium ${isGoalReached ? 'text-green-400' : ''}">${progressCapped}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-bar-fill ${isGoalReached ? 'bg-green-500' : ''}" style="width: ${progressCapped}%"></div>
+              </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+              <div>
+                <p class="text-gray-400">Raised</p>
+                <p class="font-semibold text-gradient">${pledgedNum.toFixed(4)} ETH</p>
+              </div>
+              <div>
+                <p class="text-gray-400">Goal</p>
+                <p class="font-semibold">${goalNum.toFixed(4)} ETH</p>
+              </div>
+              <div>
+                <p class="text-gray-400">Time Left</p>
+                <p class="font-semibold ${isExpired ? 'text-red-400' : ''}">${timeLeftText}</p>
+              </div>
+              <div>
+                <p class="text-gray-400">Status</p>
+                <p class="font-semibold">${finalized ? 'Completed' : 'Active'}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="campaign-card-footer">
+            ${actionHTML}
+          </div>
+        </div>
+      `;
+
+      grid.innerHTML += cardHTML;
+    });
+
+  } catch (error) {
+    console.error('Failed to render factory dashboard:', error);
+    grid.innerHTML = `
+      <div class="card text-center py-8 col-span-full">
+        <p class="text-red-400">Failed to load campaigns. Please try again.</p>
+      </div>
+    `;
+  }
+}
+
+// === Claim/Withdraw Funds ===
+async function claimFunds(campaignId) {
+  let loadingToast = null;
+
+  try {
+    loadingToast = showToast('Processing withdrawal...', 'loading');
+
+    console.log('💰 Claiming funds for campaign:', campaignId);
+
+    const tx = await crowdfundingContract.finalizeCampaign(campaignId);
+
+    removeToast(loadingToast);
+    loadingToast = showToast('Mining transaction...', 'loading');
+    console.log('⏳ Waiting for transaction:', tx.hash);
+
+    await tx.wait();
+
+    removeToast(loadingToast);
+    console.log('✅ Funds claimed successfully!');
+    showToast('🎉 Funds transferred to your wallet!', 'success');
+
+    // Обновление UI
+    await loadCampaigns();
+    await updateUserStats();
+    await renderFactoryDashboard();
+
+  } catch (error) {
+    console.error('❌ Claim failed:', error);
+    if (loadingToast) removeToast(loadingToast);
+
+    if (error.code === 'ACTION_REJECTED') {
+      showToast('Transaction was rejected by user', 'error');
+    } else if (error.reason) {
+      showToast(`Error: ${error.reason}`, 'error');
+    } else {
+      showToast('Failed to claim funds', 'error');
+    }
+  }
+}
+
+// === Cancel Campaign (Blockchain Call) ===
+async function cancelCampaignHandler(campaignId) {
+  let loadingToast = null;
+
+  try {
+    loadingToast = showToast('Cancelling campaign...', 'loading');
+
+    console.log('❌ Cancelling campaign:', campaignId);
+
+    const tx = await crowdfundingContract.cancelCampaign(campaignId);
+
+    removeToast(loadingToast);
+    loadingToast = showToast('Mining transaction...', 'loading');
+    console.log('⏳ Waiting for transaction:', tx.hash);
+
+    await tx.wait();
+
+    removeToast(loadingToast);
+    console.log('✅ Campaign cancelled successfully!');
+    showToast('🗑️ Campaign deleted from blockchain!', 'success');
+
+    // Обновление UI
+    await loadCampaigns();
+    await updateUserStats();
+    await renderFactoryDashboard();
+
+  } catch (error) {
+    console.error('❌ Cancel failed:', error);
+    if (loadingToast) removeToast(loadingToast);
+
+    if (error.code === 'ACTION_REJECTED') {
+      showToast('Transaction was rejected by user', 'error');
+    } else if (error.reason) {
+      showToast(`Error: ${error.reason}`, 'error');
+    } else {
+      showToast('Failed to cancel campaign', 'error');
+    }
+  }
+}
+
 function switchTab(tab) {
   if (tab === 'factory') {
     tabFactory.classList.add('active');
@@ -373,19 +777,23 @@ async function createCampaign() {
   const hours = parseInt(hoursInput.value) || 0;
   const minutes = parseInt(minutesInput.value) || 0;
 
+  // Получаем опциональный URL изображения
+  const imageUrlInput = document.getElementById('product-image-url');
+  const imageUrl = imageUrlInput ? imageUrlInput.value.trim() : '';
+
   if (!companyName || !productName) {
-    alert('⚠️ Please fill in Company Name and Product Name!');
+    showToast('Please fill in Company Name and Product Name!', 'error');
     return;
   }
 
   if (quantity <= 0 || pricePerUnit <= 0) {
-    alert('⚠️ Please enter valid Quantity and Price Per Unit!');
+    showToast('Please enter valid Quantity and Price Per Unit!', 'error');
     return;
   }
 
   // Проверка что хотя бы какая-то длительность указана
   if (days === 0 && hours === 0 && minutes === 0) {
-    alert('⚠️ Please set a duration (at least 1 minute)!');
+    showToast('Please set a duration (at least 1 minute)!', 'error');
     return;
   }
 
@@ -393,15 +801,22 @@ async function createCampaign() {
   const totalGoalEth = quantity * pricePerUnit;
 
   // Формируем title для блокчейна: "Company - Product (Qty pcs)"
-  const title = `${companyName} - ${productName} (${quantity} pcs)`;
+  // Если есть URL изображения, добавляем его через разделитель "|||"
+  let title = `${companyName} - ${productName} (${quantity} pcs)`;
+  if (imageUrl) {
+    title = `${title}|||${imageUrl}`;
+  }
 
   // Сохраняем оригинальный текст кнопки
   const originalBtnText = submitBtn.textContent;
+
+  let loadingToast = null;
 
   try {
     // UX: Показываем статус загрузки
     submitBtn.textContent = '⏳ Creating...';
     submitBtn.disabled = true;
+    loadingToast = showToast('Creating campaign...', 'loading');
 
     // Конвертация значений
     const goalWei = ethers.parseEther(totalGoalEth.toString());
@@ -427,13 +842,15 @@ async function createCampaign() {
     );
 
     // Ожидание подтверждения транзакции
-    submitBtn.textContent = '⛏️ Mining...';
+    removeToast(loadingToast);
+    loadingToast = showToast('Mining transaction...', 'loading');
     console.log('⏳ Waiting for transaction:', tx.hash);
 
     await tx.wait();
 
+    removeToast(loadingToast);
     console.log('✅ Campaign created successfully!');
-    alert('🎉 Production batch launched successfully!');
+    showToast('🎉 Production batch launched successfully!', 'success');
 
     // Очистка формы
     companyInput.value = '';
@@ -444,19 +861,22 @@ async function createCampaign() {
     hoursInput.value = '0';
     minutesInput.value = '5';
     document.getElementById('calculated-goal').textContent = '0.00 ETH';
+    if (imageUrlInput) imageUrlInput.value = '';
 
-    // Обновление списка кампаний
+    // Обновление списка кампаний и Factory Dashboard
     await loadCampaigns();
+    await renderFactoryDashboard();
 
   } catch (error) {
     console.error('❌ Failed to create campaign:', error);
+    if (loadingToast) removeToast(loadingToast);
 
     if (error.code === 'ACTION_REJECTED') {
-      alert('Transaction was rejected by user.');
+      showToast('Transaction was rejected by user', 'error');
     } else if (error.reason) {
-      alert(`Error: ${error.reason}`);
+      showToast(`Error: ${error.reason}`, 'error');
     } else {
-      alert('Failed to create campaign. Check console for details.');
+      showToast('Failed to create campaign', 'error');
     }
   } finally {
     // Восстанавливаем кнопку
@@ -504,13 +924,19 @@ async function loadCampaigns() {
     const now = Math.floor(Date.now() / 1000);
 
     campaigns.forEach((campaign, index) => {
+      // Пропускаем отменённые кампании (deleted) - безопасная проверка для старых контрактов
+      if (campaign.deleted === true) return;
+
       // Деструктуризация данных кампании
       const owner = campaign.creator;
-      const title = campaign.title;
+      const rawTitle = campaign.title;
       const goal = campaign.fundingGoal;
       const pledged = campaign.totalRaised;
       const deadline = Number(campaign.deadline);
       const finalized = campaign.finalized;
+
+      // Парсинг title: разделяем по "|||" для извлечения URL изображения
+      const [title, customImageUrl] = rawTitle.split('|||');
 
       // Расчёты
       const goalEth = ethers.formatEther(goal);
@@ -645,15 +1071,49 @@ async function loadCampaigns() {
         }
       }
 
+      // Генерация аватара владельца
+      const ownerAvatarUrl = renderAvatar(owner, 6, 4);
+      const ownerAvatarHTML = ownerAvatarUrl
+        ? `<img src="${ownerAvatarUrl}" class="avatar-card" alt="Owner">`
+        : '';
+
+      // Генерация HTML для изображения (только если предоставлен customImageUrl)
+      let imageHTML = '';
+      if (customImageUrl && customImageUrl.trim()) {
+        // Случайная категория для визуального разнообразия
+        const categories = [
+          { name: 'Electronics', color: 'bg-blue-500/20 text-blue-400' },
+          { name: 'Clothing', color: 'bg-pink-500/20 text-pink-400' },
+          { name: 'Raw Materials', color: 'bg-amber-500/20 text-amber-400' },
+          { name: 'Components', color: 'bg-green-500/20 text-green-400' },
+          { name: 'Machinery', color: 'bg-purple-500/20 text-purple-400' },
+          { name: 'Consumer Goods', color: 'bg-cyan-500/20 text-cyan-400' }
+        ];
+        const category = categories[index % categories.length];
+
+        imageHTML = `
+          <div class="card-image-container">
+            <img src="${escapeHtml(customImageUrl.trim())}" class="card-image" alt="Product" loading="lazy" onerror="this.parentElement.style.display='none'">
+            <span class="category-badge ${category.color}">${category.name}</span>
+          </div>
+        `;
+      }
+
       // HTML карточки
       const cardHTML = `
         <div class="campaign-card" data-campaign-id="${index}" data-price-per-unit="${pricePerUnit}">
+          <!-- Product Image (only if custom URL provided) -->
+          ${imageHTML}
+          
           <div class="campaign-card-header">
             <div class="flex items-center justify-between mb-2">
               <h3 class="text-lg font-semibold">${escapeHtml(title)}</h3>
               ${statusBadge}
             </div>
-            <p class="text-sm text-gray-400">by ${owner.slice(0, 6)}...${owner.slice(-4)}${isOwner ? ' (You)' : ''}</p>
+            <div class="avatar-container">
+              ${ownerAvatarHTML}
+              <p class="text-sm text-gray-400">by ${owner.slice(0, 6)}...${owner.slice(-4)}${isOwner ? ' (You)' : ''}</p>
+            </div>
           </div>
 
           <div class="campaign-card-body">
@@ -737,7 +1197,7 @@ async function contribute(campaignId, pricePerUnit) {
   const quantity = parseInt(quantityInput.value) || 0;
 
   if (quantity <= 0) {
-    alert('⚠️ Please enter a valid quantity!');
+    showToast('Please enter a valid quantity!', 'error');
     return;
   }
 
@@ -746,12 +1206,14 @@ async function contribute(campaignId, pricePerUnit) {
 
   // Сохраняем оригинальный текст кнопки
   const originalBtnText = contributeBtn.innerHTML;
+  let loadingToast = null;
 
   try {
     // UX: Показываем статус загрузки
     contributeBtn.innerHTML = '⏳ Processing...';
     contributeBtn.disabled = true;
     quantityInput.disabled = true;
+    loadingToast = showToast('Processing purchase...', 'loading');
 
     // Конвертация ETH в Wei
     const amountWei = ethers.parseEther(totalCostEth.toFixed(18));
@@ -770,13 +1232,15 @@ async function contribute(campaignId, pricePerUnit) {
     });
 
     // Ожидание подтверждения
-    contributeBtn.innerHTML = '⛏️ Mining...';
+    removeToast(loadingToast);
+    loadingToast = showToast('Mining transaction...', 'loading');
     console.log('⏳ Waiting for transaction:', tx.hash);
 
     await tx.wait();
 
+    removeToast(loadingToast);
     console.log('✅ Purchase successful!');
-    alert(`🎉 Successfully bought ${quantity} items for ${totalCostEth.toFixed(6)} ETH!`);
+    showToast(`🎉 Bought ${quantity} items for ${totalCostEth.toFixed(4)} ETH!`, 'success');
 
     // Очистка полей
     quantityInput.value = '';
@@ -788,13 +1252,14 @@ async function contribute(campaignId, pricePerUnit) {
 
   } catch (error) {
     console.error('❌ Purchase failed:', error);
+    if (loadingToast) removeToast(loadingToast);
 
     if (error.code === 'ACTION_REJECTED') {
-      alert('Transaction was rejected by user.');
+      showToast('Transaction was rejected by user', 'error');
     } else if (error.reason) {
-      alert(`Error: ${error.reason}`);
+      showToast(`Error: ${error.reason}`, 'error');
     } else {
-      alert('Failed to buy items. Check console for details.');
+      showToast('Failed to buy items', 'error');
     }
 
     // Восстанавливаем кнопку при ошибке
@@ -808,22 +1273,26 @@ async function contribute(campaignId, pricePerUnit) {
 async function finalizeCampaign(campaignId) {
   const btn = event.target;
   const originalText = btn.innerHTML;
+  let loadingToast = null;
 
   try {
     btn.innerHTML = '⏳ Processing...';
     btn.disabled = true;
+    loadingToast = showToast('Finalizing campaign...', 'loading');
 
     console.log('✅ Finalizing campaign:', campaignId);
 
     const tx = await crowdfundingContract.finalizeCampaign(campaignId);
 
-    btn.innerHTML = '⛏️ Mining...';
+    removeToast(loadingToast);
+    loadingToast = showToast('Mining transaction...', 'loading');
     console.log('⏳ Waiting for transaction:', tx.hash);
 
     await tx.wait();
 
+    removeToast(loadingToast);
     console.log('✅ Campaign finalized!');
-    alert('🎉 Campaign finalized successfully!');
+    showToast('🎉 Campaign finalized successfully!', 'success');
 
     // Обновление UI
     await loadCampaigns();
@@ -831,13 +1300,14 @@ async function finalizeCampaign(campaignId) {
 
   } catch (error) {
     console.error('❌ Finalization failed:', error);
+    if (loadingToast) removeToast(loadingToast);
 
     if (error.code === 'ACTION_REJECTED') {
-      alert('Transaction was rejected by user.');
+      showToast('Transaction was rejected by user', 'error');
     } else if (error.reason) {
-      alert(`Error: ${error.reason}`);
+      showToast(`Error: ${error.reason}`, 'error');
     } else {
-      alert('Failed to finalize campaign. Check console for details.');
+      showToast('Failed to finalize campaign', 'error');
     }
 
     btn.innerHTML = originalText;
@@ -849,23 +1319,27 @@ async function finalizeCampaign(campaignId) {
 async function withdrawFunds(campaignId) {
   const btn = event.target;
   const originalText = btn.innerHTML;
+  let loadingToast = null;
 
   try {
     btn.innerHTML = '⏳ Processing...';
     btn.disabled = true;
+    loadingToast = showToast('Withdrawing funds...', 'loading');
 
     console.log('💰 Withdrawing funds from campaign:', campaignId);
 
     // Вызываем finalizeCampaign который переводит средства владельцу
     const tx = await crowdfundingContract.finalizeCampaign(campaignId);
 
-    btn.innerHTML = '⛏️ Mining...';
+    removeToast(loadingToast);
+    loadingToast = showToast('Mining transaction...', 'loading');
     console.log('⏳ Waiting for transaction:', tx.hash);
 
     await tx.wait();
 
+    removeToast(loadingToast);
     console.log('✅ Funds withdrawn successfully!');
-    alert('🎉 Funds have been transferred to your wallet!');
+    showToast('🎉 Funds transferred to your wallet!', 'success');
 
     // Обновление UI
     await loadCampaigns();
@@ -873,13 +1347,14 @@ async function withdrawFunds(campaignId) {
 
   } catch (error) {
     console.error('❌ Withdrawal failed:', error);
+    if (loadingToast) removeToast(loadingToast);
 
     if (error.code === 'ACTION_REJECTED') {
-      alert('Transaction was rejected by user.');
+      showToast('Transaction was rejected by user', 'error');
     } else if (error.reason) {
-      alert(`Error: ${error.reason}`);
+      showToast(`Error: ${error.reason}`, 'error');
     } else {
-      alert('Failed to withdraw funds. Check console for details.');
+      showToast('Failed to withdraw funds', 'error');
     }
 
     btn.innerHTML = originalText;
